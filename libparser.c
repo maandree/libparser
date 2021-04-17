@@ -1,6 +1,7 @@
 /* See LICENSE file for copyright and license details. */
 #include "libparser.h"
-#include <libsimple.h>
+#include <stdlib.h>
+#include <string.h>
 
 
 struct context {
@@ -9,8 +10,9 @@ struct context {
 	const char *data;
 	size_t length;
 	size_t position;
-	int done;
-	int exception;
+	char done;
+	char exception;
+	char error;
 };
 
 
@@ -28,6 +30,18 @@ free_unit(struct libparser_unit *unit, struct context *ctx)
 }
 
 
+static void
+dealloc_unit(struct libparser_unit *unit)
+{
+	struct libparser_unit *next;
+	for (; unit; unit = next) {
+		dealloc_unit(unit->in);
+		next = unit->next;
+		free(unit);
+	}
+}
+
+
 static struct libparser_unit *
 try_match(const char *rule, const union libparser_sentence *sentence, struct context *ctx)
 {
@@ -37,7 +51,12 @@ try_match(const char *rule, const union libparser_sentence *sentence, struct con
 	size_t i;
 
 	if (!ctx->cache) {
-		unit = ecalloc(1, sizeof(*unit));
+		unit = calloc(1, sizeof(*unit));
+		if (!unit) {
+			ctx->done = 1;
+			ctx->error = 1;
+			return NULL;
+		}
 	} else {
 		unit = ctx->cache;
 		ctx->cache = unit->next;
@@ -168,8 +187,8 @@ mismatch:
 }
 
 
-struct libparser_unit *
-libparser_parse_file(const struct libparser_rule *const rules[], const char *data, size_t length, int *exceptionp)
+int
+libparser_parse_file(const struct libparser_rule *const rules[], const char *data, size_t length, struct libparser_unit **rootp)
 {
 	struct libparser_unit *ret, *t;
 	struct context ctx;
@@ -181,6 +200,7 @@ libparser_parse_file(const struct libparser_rule *const rules[], const char *dat
 	ctx.length = length;
 	ctx.position = 0;
 	ctx.done = 0;
+	ctx.error = 0;
 	ctx.exception = 0;
 
 	for (i = 0; rules[i]; i++)
@@ -190,7 +210,6 @@ libparser_parse_file(const struct libparser_rule *const rules[], const char *dat
 		abort();
 
 	ret = try_match(rules[i]->name, rules[i]->sentence, &ctx);
-	*exceptionp = ctx.exception;
 
 	while (ctx.cache) {
 		t = ctx.cache;
@@ -198,5 +217,12 @@ libparser_parse_file(const struct libparser_rule *const rules[], const char *dat
 		free(t);
 	}
 
-	return ret;
+	if (ctx.error) {
+		dealloc_unit(ret);
+		*rootp = NULL;
+		return -1;
+	}
+
+	*rootp = ret;
+	return !ctx.exception;
 }

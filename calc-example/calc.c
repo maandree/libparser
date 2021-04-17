@@ -1,9 +1,9 @@
 /* See LICENSE file for copyright and license details. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <libparser.h>
-#include <libsimple.h>
-#include <libsimple-arg.h>
-
-USAGE("");
 
 
 static void
@@ -107,29 +107,29 @@ main(int argc, char *argv[])
 	size_t size = 0;
 	ssize_t len;
 	intmax_t res;
-	int exception;
+	int r;
 
-	ARGBEGIN {
-	default:
-		usage();
-	} ARGEND;
-	if (argc)
-		usage();
+	if (argc == 2 ? strcmp(argv[1], "--") : argc > 2) {
+		fprintf(stderr, "usage: %s\n", argv[0]);
+		return 1;
+	}
 
 	while ((len = getline(&line, &size, stdin)) >= 0) {
 		if (len && line[len - 1] == '\n')
 			line[--len] = '\0';
-		input = libparser_parse_file(libparser_rule_table, line, (size_t)len, &exception);
-		if (!input) {
-			weprintf("didn't find anything to parse\n");
-			free_input(input);
+		r = libparser_parse_file(libparser_rule_table, line, (size_t)len, &input);
+		if (r < 0) {
+			perror("libparser_parse_file");
+			continue;
+		} else if (!input) {
+			fprintf(stderr, "didn't find anything to parse\n");
 			continue;
 		} else if (input->end != (size_t)len) {
-			weprintf("line could not be parsed, stopped at column %zu\n", input->end);
+			fprintf(stderr, "line could not be parsed, stopped at column %zu\n", input->end);
 			free_input(input);
 			continue;
-		} else if (exception) {
-			weprintf("premature end of line\n");
+		} else if (!r) {
+			fprintf(stderr, "premature end of line\n");
 			free_input(input);
 			continue;
 		}

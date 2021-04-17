@@ -72,7 +72,6 @@ struct libparser_unit {
 extern const struct libparser_rule *const libparser_rule_table[];
 
 
-struct libparser_unit *libparser_parse_file(const struct libparser_rule *const rules[],
-                                            const char *data, size_t length, int *exceptionp);
+int libparser_parse_file(const struct libparser_rule *const rules[], const char *data, size_t length, struct libparser_unit **rootp);
 
 #endif
