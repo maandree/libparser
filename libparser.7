@@ -87,14 +87,14 @@ integer = _decimal | _hexadecimal; (* May not exceed 255. *)
 _low  = character | integer;
 _high = character | integer;
 
-concatenation = _, _operand, _, {\(dq,\(dq, _, _operand, _};
-alternation   = _, concatenation, _, {\(dq|\(dq, _, concatenation, _};
-optional      = _, \(dq[\(dq, _, _expression, _, \(dq]\(dq, _;
-repeated      = _, \(dq{\(dq, _, _expression, _, \(dq}\(dq, _;
-group         = _, \(dq(\(dq, _, _expression, _, \(dq)\(dq, _;
-char-range    = _, \(dq<\(dq, _, _low, _, \(dq,\(dq, _, _high, \(dq_\(dq, \(dq>\(dq, _;
-exception     = _, \(dq-\(dq, _;
-embedded-rule = _, identifier, _;
+concatenation = _operand, {_, \(dq,\(dq, _, _operand};
+alternation   = concatenation, {_, \(dq|\(dq, _, concatenation};
+optional      = \(dq[\(dq, _, _expression, _, \(dq]\(dq;
+repeated      = \(dq{\(dq, _, _expression, _, \(dq}\(dq;
+group         = \(dq(\(dq, _, _expression, _, \(dq)\(dq;
+char-range    = \(dq<\(dq, _, _low, _, \(dq,\(dq, _, _high, \(dq_\(dq, \(dq>\(dq;
+exception     = \(dq-\(dq;
+embedded-rule = identifier;
 
 _literal = char-range | exception | string;
 _group   = optional | repeated | group | embedded-rule;
@@ -105,10 +105,10 @@ _expression = alternation;
 
 (* RULES *)
 
-rule = _, identifier, _, \(dq=\(dq, _, _expression, \(dq;\(dq;
+rule = identifier, _, \(dq=\(dq, _, _expression, _, \(dq;\(dq;
 
 (* This is the root rule of the grammar. *)
-grammar = {rules, _}, _;
+grammar = _, {rules, _};
 .fi
 .PP
 .RE
