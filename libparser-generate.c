@@ -7,9 +7,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <libsimple-arg.h>
 
-USAGE("main-rule");
+
+static const char *argv0 = "libparser-generate";
+
+static void
+usage(void)
+{
+	fprintf(stderr, "usage: %s main-rule\n", argv0);
+	exit(1);
+}
 
 
 #define eprintf(...) (fprintf(stderr, __VA_ARGS__), exit(1))
@@ -496,10 +503,16 @@ main(int argc, char *argv[])
 	size_t i, j;
 	int cmp, err;
 
-	ARGBEGIN {
-	default:
-		usage();
-	} ARGEND;
+	if (argc) {
+		argv0 = *argv++;
+		argc--;
+	}
+	if (argc && argv[0][0] == '-') {
+		if (argv[0][1] != '-' || argv[0][2])
+			usage();
+		argv++;
+		argc--;
+	}
 
 	if (argc != 1 || !isidentifier(argv[0][0]))
 		usage();
