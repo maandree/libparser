@@ -12,7 +12,7 @@ enum libparser_sentence_type {
 	LIBPARSER_SENTENCE_TYPE_OPTIONAL,      /* .unary */
 	LIBPARSER_SENTENCE_TYPE_REPEATED,      /* .unary */
 	LIBPARSER_SENTENCE_TYPE_STRING,        /* .string */
-	LIBPARSER_SENTENCE_TYPE_CHAR_RANGE,    /* .char_range */ /* TODO not supported yet: <low, high> */
+	LIBPARSER_SENTENCE_TYPE_CHAR_RANGE,    /* .char_range */ /* TODO not supported in libparser-generate yet: <low, high> */
 	LIBPARSER_SENTENCE_TYPE_RULE,          /* .rule */
 	LIBPARSER_SENTENCE_TYPE_EXCEPTION,     /* (none) */
 	LIBPARSER_SENTENCE_TYPE_EOF            /* (none) */
