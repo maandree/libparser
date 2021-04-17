@@ -95,6 +95,7 @@ EXTENDED DESCRIPTION
 
 		rule = _, identifier, _, "=", _, _expression, ";";
 
+		(* This is the root rule of the grammar. *)
 		grammar = {rules, _}, _;
 
 	The file must be encoded in UTF-8, with LF as the line
