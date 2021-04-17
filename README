@@ -1,0 +1,121 @@
+NAME
+	libparser - Context-free grammar parsing library
+
+DESCRIPTION
+	libparser is a small C library that parses input based on a
+	precompiled context-free grammar.
+
+	To use libparser, a developer should write a syntax for the
+	input that his application shall parse, in a syntax based
+	on Extended Backus–Naur form (EBNF) (somewhat simplified but
+	also somewhat extended). libparser-generate(1) is then used
+	to create a C source file describing the syntax, which shall
+	be compiled into an object file with a C compiler. This file
+	provides a definition of a global variable declared in
+	<libparser.h>: libparser_rule_table. This variable is used
+	when calling libparser_parse_file(3) to parse the application's
+	input.
+
+	libparser is proudly non-self-hosted.
+
+EXTENDED DESCRIPTION
+   Syntax
+	The grammar for libparser-generate(1)'s input can be described
+	in its own grammar:
+
+		(* CHARACTER CLASSES *)
+
+		_space    = " " | "\n" | "\t";
+		_alpha    = <"a", "z"> | <"A", "Z">;
+		_octal    = <"0", "7">;
+		_digit    = <"0", "9">;
+		_xdigit   = _digit | <"a", "f"> | <"A", "F">;
+		_nonascii = <128, 255>;
+
+
+		(* WHITESPACE/COMMENTS, THE GRAMMAR IS FREE-FORM *)
+
+		_comment_char = _space | <"!", 0x29> | <0x2B, 0xFF>;
+		_comment_tail = [_comment_char], ("*)" | _comment_tail);
+		_comment      = "(*", _comment_tail;
+
+		_ = {_space | _comment};
+
+
+		(* IDENTIFIERS *)
+
+		_identifier_head = _alpha | _digit | _nonascii | "_";
+		_identifier_tail = _identifier_head | "-";
+
+		identifier = _identifier_head, {_identifier_tail};
+
+
+		(* STRINGS *)
+
+		_escape_simple = "\\" | "\"" | "'" | "a" | "b" | "f" | "n" | "r" | "v";
+		_escape_hex    = ("x" | "X"), _xdigit, _xdigit;
+		_escape_octal  = _octal, {_octal}; (* May not exceed 255 in base 10 *)
+		_escape        = _escape_simple | _escape_hex | _escape_octal | -;
+		_character     = "\\", _escape | <1, "!"> | <"#", 0xFF>;
+
+		string    = "\"", _character, {_character}, "\"";
+		character = "\"", _character, "\"";
+
+
+		(* INTEGERS *)
+
+		_decimal     = _digit, {_digit};
+		_hexadecimal = "0", ("x" | "X"), _xdigit, {_xdigit};
+
+		integer  = _decimal | _hexadecimal; (* May not exceed 255. *)
+
+
+		(* GROUPINGS *)
+
+		_low  = character | integer;
+		_high = character | integer;
+
+		concatenation = _, _operand, _, {",", _, _operand, _};
+		alternation   = _, concatenation, _, {"|", _, concatenation, _};
+		optional      = _, "[", _, _expression, _, "]", _;
+		repeated      = _, "{", _, _expression, _, "}", _;
+		group         = _, "(", _, _expression, _, ")", _;
+		char-range    = _, "<", _, _low, _, ",", _, _high, "_", ">", _;
+		exception     = _, "-", _;
+		embedded-rule = _, identifier, _;
+
+		_literal = char-range | exception | string;
+		_group   = optional | repeated | group | embedded-rule;
+		_operand = _group | _literal;
+
+		_expression = alternation;
+
+
+		(* RULES *)
+
+		rule = _, identifier, _, "=", _, _expression, ";";
+
+		grammar = {rules, _}, _;
+
+	The file must be encoded in UTF-8, with LF as the line
+	break (CR and FF are illegal just becuase).
+
+	In alternations, the first (leftmost) match is selected. The
+	parser is able to backtrack incase it later turns out that it
+	could not finish that branch. Whenever an exception is
+	reached, the parser will terminate there.
+
+	Repeated symbols may occour any number of times, including
+	zero. The compiler is able to backtrack if it takes too much.
+
+	Concatenation has higher precedence than alternation,
+	groups ("(", ..., ")") have no semantic meaning and are useful
+	only to put a alternation inside a concatenation without
+	creating a new rule for that.
+
+	In character ranges, the _high and _low values must be at
+	least 0 and at most 255, and _high must be greater than _low.
+
+	Rules that begin with an underscore will not show up for
+	the application in the parse result, the rest of the rules
+	will appear in the tree-formatted result.
