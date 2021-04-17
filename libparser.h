@@ -1,4 +1,7 @@
 /* See LICENSE file for copyright and license details. */
+#ifndef LIBPARSER_H
+#define LIBPARSER_H
+
 #include <stddef.h>
 
 union libparser_sentence;
@@ -71,3 +74,5 @@ extern const struct libparser_rule *const libparser_rule_table[];
 
 struct libparser_unit *libparser_parse_file(const struct libparser_rule *const rules[],
                                             const char *data, size_t length, int *exceptionp);
+
+#endif
