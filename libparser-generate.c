@@ -703,14 +703,16 @@ again:
 					goto invalid_range;
 				} else if (tokens[i]->s[1] == '\\') {
 					j = 3;
-					if (tokens[i]->s[2] == 'a') {
+					if (tokens[i]->s[2] == '"') {
+						tokens[i]->s[1] = '"';
+					} else if (tokens[i]->s[2] == '\'') {
+						tokens[i]->s[1] = '\'';
+					} else if (tokens[i]->s[2] == '\\') {
+						tokens[i]->s[1] = '\\';
+					} else if (tokens[i]->s[2] == 'a') {
 						tokens[i]->s[1] = '\a';
 					} else if (tokens[i]->s[2] == 'b') {
 						tokens[i]->s[1] = '\b';
-					} else if (tokens[i]->s[2] == 'e') {
-						tokens[i]->s[1] = '\x1b';
-					} else if (tokens[i]->s[2] == 'E') {
-						tokens[i]->s[1] = '\x1b';
 					} else if (tokens[i]->s[2] == 'f') {
 						tokens[i]->s[1] = '\f';
 					} else if (tokens[i]->s[2] == 'n') {
