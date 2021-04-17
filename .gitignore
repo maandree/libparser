@@ -1,0 +1,10 @@
+*\#*
+*~
+*.o
+*.a
+*.lo
+*.so
+*.su
+/libparser-generate
+/calc-example/calc
+/calc-example/calc-syntax.c

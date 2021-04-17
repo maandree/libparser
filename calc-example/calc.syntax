@@ -1,0 +1,27 @@
+_WHITESPACE = " " | "\t" | " ";
+_ = {_WHITESPACE};
+
+
+DIGIT = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+
+ADD = _, ("+"),             _;
+SUB = _, ("-" | "−"),       _;
+MUL = _, ("*" | "⋅" | "×"), _;
+DIV = _, ("/" | "∕" | "÷"), _;
+
+
+sign = ADD | SUB;
+
+unsigned = DIGIT, {DIGIT | _WHITESPACE | "_" | "'"};
+
+_number = unsigned | "(", _expr, (")" | -);
+
+number = _number, {_, _number}; (* optionally with implicit multiplication *)
+
+value = [sign], number;
+
+_expr = hyper1;
+
+
+hyper1 = _, hyper2, {(ADD | SUB), (hyper2 | -)}, _;
+hyper2 = _, value, {(MUL | DIV), (value | -)}, _;
