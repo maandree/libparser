@@ -27,6 +27,19 @@ calc-example/calc: calc-example/calc.o calc-example/calc-syntax.o libparser.a
 calc-example/calc-syntax.c: libparser-generate calc-example/calc.syntax
 	./libparser-generate _expr < calc-example/calc.syntax > $@
 
+install: libparser.a libparser-generate
+	mkdir -p -- "$(DESTDIR)$(PREFIX)/bin"
+	mkdir -p -- "$(DESTDIR)$(PREFIX)/lib"
+	mkdir -p -- "$(DESTDIR)$(PREFIX)/include"
+	cp -- libparser-generate "$(DESTDIR)$(PREFIX)/bin"
+	cp -- libparser.a "$(DESTDIR)$(PREFIX)/lib"
+	cp -- libparser.h "$(DESTDIR)$(PREFIX)/include"
+
+uninstall:
+	-rm -f -- "$(DESTDIR)$(PREFIX)/bin/libparser-generate"
+	-rm -f -- "$(DESTDIR)$(PREFIX)/lib/libparser.a"
+	-rm -f -- "$(DESTDIR)$(PREFIX)/include/libparser.h"
+
 clean:
 	-rm -f -- *.o *.lo *.a *.so *.su *-example/*.o *-example/*.su *-example/*-syntax.c libparser-generate
 	-rm -f -- calc-example/calc
@@ -34,4 +47,4 @@ clean:
 .SUFFIXES:
 .SUFFIXES: .c .o .lo
 
-.PHONY: all clean
+.PHONY: all install uninstall clean
