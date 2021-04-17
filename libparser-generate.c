@@ -80,7 +80,7 @@ ereallocarray(void *ptr, size_t n, size_t m)
 	void *ret;
 	if (n && m > SIZE_MAX / n)
 		eprintf("%s: realloc %p %zu*%zu: %s\n", argv0, ptr, n, m, strerror(EOVERFLOW));
-	ret = realloc(ptr, n * n);
+	ret = realloc(ptr, n * m);
 	if (!ret)
 		eprintf("%s: realloc %p %zu*%zu: %s\n", argv0, ptr, n, m, strerror(errno));
 	return ret;
@@ -354,7 +354,7 @@ static void
 emit_and_free_sentence(struct node *node, size_t *indexp)
 {
 	size_t index = (*indexp)++, left, right;
-	struct node *next;
+	struct node *next, *low, *high;
 
 	for (; node->token->s[0] == '('; node = next) {
 		next = node->data;
@@ -368,6 +368,23 @@ emit_and_free_sentence(struct node *node, size_t *indexp)
 		           ".type = LIBPARSER_SENTENCE_TYPE_%s, .sentence = &sentence_%zu_%zu"
 		       "}};\n",
 		       nrule_names, index, node->token->s[0] == '[' ? "OPTIONAL" : "REPEATED", nrule_names, index + 1);
+	} else if (node->token->s[0] == '<') {
+		low = node->data;
+		high = node->data->next;
+		if ((unsigned char)low->token->s[0] > (unsigned char)high->token->s[0]) {
+			eprintf("%s: lower character range bound on line %zu at column %zu (character %zu) "
+			        "is greater than upper bound on line %zu at column %zu (character %zu)\n",
+			        argv0, low->token->lineno, low->token->column, low->token->character,
+			        high->token->lineno, high->token->column, high->token->character);
+		}
+		printf("static union libparser_sentence sentence_%zu_%zu = {.unary = {"
+		           ".type = LIBPARSER_SENTENCE_TYPE_CHAR_RANGE, .low = %hhu, .high = %hhu"
+		       "}};\n",
+		       nrule_names, index, (unsigned char)low->token->s[0], (unsigned char)high->token->s[0]);
+		free(low->token);
+		free(high->token);
+		free(low);
+		free(high);
 	} else if (node->token->s[0] == '|' || node->token->s[0] == ',') {
 		right = *indexp;
 		emit_and_free_sentence(node->data->next, indexp);
@@ -470,7 +487,8 @@ emit_and_free_rule(struct node *rule)
 {
 	size_t index = 0;
 
-	rule->data = order_sentences(rule->data);
+	if (rule->data->token->s[0] != '<')
+		rule->data = order_sentences(rule->data);
 	emit_and_free_sentence(rule->data, &index);
 
 	printf("static struct libparser_rule rule_%zu = {\"%s\", &sentence_%zu_0};\n", nrule_names, rule->token->s, nrule_names);
@@ -495,13 +513,17 @@ main(int argc, char *argv[])
 		NEW_RULE,
 		EXPECT_EQUALS,
 		EXPECT_OPERAND,
-		EXPECT_OPERATOR
+		EXPECT_OPERATOR,
+		EXPECT_RANGE_LOW,
+		EXPECT_RANGE_DELIM,
+		EXPECT_RANGE_HIGH,
+		EXPECT_RANGE_CLOSE
 	} state = NEW_RULE;
 	struct node *stack = NULL, *parent_node, *node;
 	char *data;
 	struct token **tokens;
 	size_t i, j;
-	int cmp, err;
+	int cmp, err, val;
 
 	if (argc) {
 		argv0 = *argv++;
@@ -580,6 +602,10 @@ again:
 		case EXPECT_OPERAND:
 			if (type == SYMBOL) {
 				if (tokens[i]->s[0] == '(' || tokens[i]->s[0] == '[' || tokens[i]->s[0] == '{') {
+					goto push_stack;
+				} else if (tokens[i]->s[0] == '<') {
+					state = EXPECT_RANGE_LOW;
+				push_stack:
 					parent_node = stack;
 					stack = ecalloc(1, sizeof(*stack));
 					stack->parent = parent_node;
@@ -641,6 +667,97 @@ again:
 				        tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
 			}
 			break;
+
+		case EXPECT_RANGE_LOW:
+			state = EXPECT_RANGE_DELIM;
+			goto add_range_bound;
+
+		case EXPECT_RANGE_DELIM:
+			if (type != SYMBOL || tokens[i]->s[0] != ',') {
+				eprintf("%s: expected an ',' on line %zu at column %zu (character %zu)\n",
+				        argv0, tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
+			}
+			free(tokens[i]);
+			state = EXPECT_RANGE_HIGH;
+			break;
+
+		case EXPECT_RANGE_HIGH:
+			state = EXPECT_RANGE_CLOSE;
+		add_range_bound:
+			if (type == IDENTIFIER) {
+				val = 0;
+				if (tokens[i]->s[0] == '0' && (tokens[i]->s[1] == 'x' || tokens[i]->s[1] == 'X')) {
+					for (j = 2; isxdigit(tokens[i]->s[j]) && val < 255; j++)
+						val = (val * 16) | ((tokens[i]->s[j] & 15) + (tokens[i]->s[j] > '9' ? 9 : 0));
+				} else {
+					for (j = 0; isdigit(tokens[i]->s[j]) && val < 255; j++)
+						val = val * 10 + (tokens[i]->s[j] & 15);
+				}
+				if (val > 255 || tokens[i]->s[j])
+					goto invalid_range;
+				tokens[i]->s[0] = (char)val;
+				tokens[i]->s[1] = '\0';
+			} else if (type == STRING) {
+				/* tokens[i]->s[0] is '"' */
+				if (!tokens[i]->s[1]) {
+					goto invalid_range;
+				} else if (tokens[i]->s[1] == '\\') {
+					j = 3;
+					if (tokens[i]->s[2] == 'a') {
+						tokens[i]->s[1] = '\a';
+					} else if (tokens[i]->s[2] == 'b') {
+						tokens[i]->s[1] = '\b';
+					} else if (tokens[i]->s[2] == 'e') {
+						tokens[i]->s[1] = '\x1b';
+					} else if (tokens[i]->s[2] == 'E') {
+						tokens[i]->s[1] = '\x1b';
+					} else if (tokens[i]->s[2] == 'f') {
+						tokens[i]->s[1] = '\f';
+					} else if (tokens[i]->s[2] == 'n') {
+						tokens[i]->s[1] = '\n';
+					} else if (tokens[i]->s[2] == 'r') {
+						tokens[i]->s[1] = '\r';
+					} else if (tokens[i]->s[2] == 'v') {
+						tokens[i]->s[1] = '\v';
+					} else if (tokens[i]->s[2] == 'x' && isxdigit(tokens[i]->s[3]) && isxdigit(tokens[i]->s[4])) {
+						val = ((tokens[i]->s[3] & 15) + (tokens[i]->s[3] > '9' ? 9 : 0)) * 16;
+						val |= (tokens[i]->s[4] & 15) + (tokens[i]->s[4] > '9' ? 9 : 0);
+						tokens[i]->s[0] = (char)val;
+						j = 5;
+					} else if ('0' <= tokens[i]->s[2] && tokens[i]->s[2] <= '7') {
+						val = 0;
+						for (j = 2; '0' <= tokens[i]->s[j] && tokens[i]->s[j] <= '7' && val < 255; j++)
+							val = (val * 8) | (tokens[i]->s[j] & 15);
+						if (val > 255)
+							goto invalid_range;
+						tokens[i]->s[0] = (char)val;
+					} else {
+						goto invalid_range;
+					}
+					if (tokens[i]->s[j])
+						goto invalid_range;
+					tokens[i]->s[1] = '\0';
+				} else if (tokens[i]->s[2]) {
+					goto invalid_range;
+				} else {
+					tokens[i]->s[0] = tokens[i]->s[1];
+					tokens[i]->s[1] = '\0';
+				}
+			} else {
+			invalid_range:
+				eprintf("%s: expected a [0, 255] integer or single byte string "
+				        "on line %zu at column %zu (character %zu)\n",
+				        argv0, tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
+			}
+			goto add_singleton;
+
+		case EXPECT_RANGE_CLOSE:
+			if (type != SYMBOL || tokens[i]->s[0] != '>') {
+				eprintf("%s: expected an '>' on line %zu at column %zu (character %zu)\n",
+				        argv0, tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
+			}
+			state = EXPECT_OPERATOR;
+			goto pop;
 
 		default:
 			abort();
