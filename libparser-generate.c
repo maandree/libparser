@@ -377,7 +377,7 @@ emit_and_free_sentence(struct node *node, size_t *indexp)
 			        argv0, low->token->lineno, low->token->column, low->token->character,
 			        high->token->lineno, high->token->column, high->token->character);
 		}
-		printf("static union libparser_sentence sentence_%zu_%zu = {.unary = {"
+		printf("static union libparser_sentence sentence_%zu_%zu = {.char_range = {"
 		           ".type = LIBPARSER_SENTENCE_TYPE_CHAR_RANGE, .low = %hhu, .high = %hhu"
 		       "}};\n",
 		       nrule_names, index, (unsigned char)low->token->s[0], (unsigned char)high->token->s[0]);
