@@ -15,7 +15,7 @@ calc-example/calc-syntax.o: calc-example/calc-syntax.c libparser.h
 	$(CC) -fPIC -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
 
 libparser-generate: libparser-generate.o
-	$(CC) -o $@ libparser-generate.o $(LDFLAGS) -lsimple
+	$(CC) -o $@ libparser-generate.o $(LDFLAGS)
 
 libparser.a: libparser.o
 	$(AR) rc $@ libparser.o

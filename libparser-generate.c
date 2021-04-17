@@ -1,8 +1,18 @@
 /* See LICENSE file for copyright and license details. */
-#include <libsimple.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <libsimple-arg.h>
 
 USAGE("main-rule");
+
+
+#define eprintf(...) (fprintf(stderr, __VA_ARGS__), exit(1))
 
 
 struct token {
@@ -28,6 +38,55 @@ static size_t rule_names_size = 0;
 static char **want_rules = NULL;
 static size_t nwant_rules = 0;
 static size_t want_rules_size = 0;
+
+
+static void *
+emalloc(size_t n)
+{
+	void *ret = malloc(n);
+	if (!ret)
+		eprintf("%s: malloc %zu: %s\n", argv0, n, strerror(errno));
+	return ret;
+}
+
+static void *
+ecalloc(size_t n, size_t m)
+{
+	void *ret = calloc(n, m);
+	if (!ret)
+		eprintf("%s: calloc %zu %zu: %s\n", argv0, n, m, strerror(errno));
+	return ret;
+}
+
+static void *
+erealloc(void *ptr, size_t n)
+{
+	void *ret = realloc(ptr, n);
+	if (!ret)
+		eprintf("%s: realloc %p %zu: %s\n", argv0, ptr, n, strerror(errno));
+	return ret;
+}
+
+static void *
+ereallocarray(void *ptr, size_t n, size_t m)
+{
+	void *ret;
+	if (n && m > SIZE_MAX / n)
+		eprintf("%s: realloc %p %zu*%zu: %s\n", argv0, ptr, n, m, strerror(EOVERFLOW));
+	ret = realloc(ptr, n * n);
+	if (!ret)
+		eprintf("%s: realloc %p %zu*%zu: %s\n", argv0, ptr, n, m, strerror(errno));
+	return ret;
+}
+
+static char *
+estrdup(char *s)
+{
+	size_t n = strlen(s) + 1;
+	char *ret = emalloc(n);
+	memcpy(ret, s, n);
+	return ret;
+}
 
 
 static int
@@ -101,7 +160,7 @@ readall_and_validate(int fd, const char *fname)
 		if (r <= 0) {
 			if (!r)
 				break;
-			eprintf("read %s:", fname);
+			eprintf("%s: read %s: %s\n", argv0, fname, strerror(errno));
 		}
 	}
 
@@ -114,24 +173,24 @@ readall_and_validate(int fd, const char *fname)
 			column += 8 - column % 8;
 			character += 1;
 		} else if (buf[i] == '\r') {
-			eprintf("%s contains a CR character on line %zu at column %zu (character %zu)\n",
-			        fname, lineno, column, character);
+			eprintf("%s: %s contains a CR character on line %zu at column %zu (character %zu)\n",
+			        argv0, fname, lineno, column, character);
 		} else if ((0 < buf[i] && buf[i] < ' ') || buf[i] == 0x7F) {
-			eprintf("%s contains a illegal character on line %zu at column %zu (character %zu)\n",
-			        fname, lineno, column, character);
+			eprintf("%s: %s contains a illegal character on line %zu at column %zu (character %zu)\n",
+			        argv0, fname, lineno, column, character);
 		} else if (buf[i] == '\0') {
-			eprintf("%s contains a NUL byte on line %zu at column %zu (character %zu)\n",
-			        fname, lineno, column, character);
+			eprintf("%s: %s contains a NUL byte on line %zu at column %zu (character %zu)\n",
+			        argv0, fname, lineno, column, character);
 		} else if (!(buf[i] & 0x80)) {
 			character += 1;
 			column += 1;
 		} else if ((buf[i] & 0xC0) == 0x80) {
-			eprintf("%s contains a illegal byte on line %zu at column %zu (character %zu)\n",
-			        fname, lineno, column, character);
+			eprintf("%s: %s contains a illegal byte on line %zu at column %zu (character %zu)\n",
+			        argv0, fname, lineno, column, character);
 		} else {
 			if (!check_utf8(buf, &i, len)) {
-				eprintf("%s contains a illegal byte sequence on line %zu at column %zu (character %zu)\n",
-				        fname, lineno, column, character);
+				eprintf("%s: %s contains a illegal byte sequence on line %zu at column %zu (character %zu)\n",
+				        argv0, fname, lineno, column, character);
 			}
 			i--;
 			character += 1;
@@ -180,8 +239,8 @@ tokenise(const char *data)
 			} else if (data[i] == '"') {
 				state = STRING;
 				if (data[i + 1] == '"') {
-					eprintf("empty string token on line %zu at column %zu (character %zu)\n",
-					        lineno, column, character);
+					eprintf("%s: empty string token on line %zu at column %zu (character %zu)\n",
+					        argv0, lineno, column, character);
 				}
 			} else {
 			add_token:
@@ -189,7 +248,7 @@ tokenise(const char *data)
 					token = erealloc(token, token_size += 16);
 				token[token_len++] = '\0';
 				if (ntokens == tokens_size)
-					tokens = ereallocn(tokens, tokens_size += 16, sizeof(*tokens), 0);
+					tokens = ereallocarray(tokens, tokens_size += 16, sizeof(*tokens));
 				tokens[ntokens] = emalloc(offsetof(struct token, s) + token_len);
 				tokens[ntokens]->lineno = token_lineno;
 				tokens[ntokens]->column = token_column;
@@ -212,7 +271,7 @@ tokenise(const char *data)
 					token = erealloc(token, token_size += 16);
 				token[token_len++] = '\0';
 				if (ntokens == tokens_size)
-					tokens = ereallocn(tokens, tokens_size += 16, sizeof(*tokens), 0);
+					tokens = ereallocarray(tokens, tokens_size += 16, sizeof(*tokens));
 				tokens[ntokens] = emalloc(offsetof(struct token, s) + token_len);
 				tokens[ntokens]->lineno = token_lineno;
 				tokens[ntokens]->column = token_column;
@@ -226,8 +285,8 @@ tokenise(const char *data)
 
 		case STRING:
 			if (data[i] == '\n' || data[i] == '\t') {
-				eprintf("illegal whitespace on line %zu at column %zu (character %zu)\n",
-				        lineno, column, character);
+				eprintf("%s: illegal whitespace on line %zu at column %zu (character %zu)\n",
+				        argv0, lineno, column, character);
 			} else if (data[i] == '"') {
 				goto add_token;
 			} else if (data[i] == '\\') {
@@ -240,8 +299,8 @@ tokenise(const char *data)
 
 		case STRING_ESC:
 			if (data[i] == '\n' || data[i] == '\t') {
-				eprintf("illegal whitespace on line %zu at column %zu (character %zu)\n",
-				        lineno, column, character);
+				eprintf("%s: illegal whitespace on line %zu at column %zu (character %zu)\n",
+				        argv0, lineno, column, character);
 			}
 			if (token_len == token_size)
 				token = erealloc(token, token_size += 16);
@@ -274,9 +333,9 @@ tokenise(const char *data)
 		}
 	}
 	if (state != NEW_TOKEN && state != SPACE)
-		eprintf("premature end of file\n");
+		eprintf("%s: premature end of file\n", argv0);
 
-	tokens = ereallocn(tokens, ntokens + 1, sizeof(*tokens), 0);
+	tokens = ereallocarray(tokens, ntokens + 1, sizeof(*tokens));
 	tokens[ntokens] = NULL;
 	free(token);
 
@@ -324,7 +383,7 @@ emit_and_free_sentence(struct node *node, size_t *indexp)
 		       nrule_names, index);
 	} else {
 		if (nwant_rules == want_rules_size)
-			want_rules = ereallocn(want_rules, want_rules_size += 16, sizeof(*want_rules), 0);
+			want_rules = ereallocarray(want_rules, want_rules_size += 16, sizeof(*want_rules));
 		want_rules[nwant_rules++] = estrdup(node->token->s);
 		printf("static union libparser_sentence sentence_%zu_%zu = {.rule = {"
 		           ".type = LIBPARSER_SENTENCE_TYPE_RULE, .rule = \"%s\""
@@ -410,7 +469,7 @@ emit_and_free_rule(struct node *rule)
 	printf("static struct libparser_rule rule_%zu = {\"%s\", &sentence_%zu_0};\n", nrule_names, rule->token->s, nrule_names);
 
 	if (nrule_names == rule_names_size)
-		rule_names = ereallocn(rule_names, rule_names_size += 16, sizeof(*rule_names), 0);
+		rule_names = ereallocarray(rule_names, rule_names_size += 16, sizeof(*rule_names));
 	rule_names[nrule_names++] = estrdup(rule->token->s);
 	free(rule->token);
 	free(rule);
@@ -464,7 +523,7 @@ again:
 					goto again;
 				}
 			}
-			eprintf("premature end of file\n");
+			eprintf("%s: premature end of file\n", argv0);
 		}
 
 		if (tokens[i]->s[0] == '"') {
@@ -481,8 +540,8 @@ again:
 		switch (state) {
 		case NEW_RULE:
 			if (type != IDENTIFIER) {
-				eprintf("expected an identifier on line %zu at column %zu (character %zu)\n",
-				        tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
+				eprintf("%s: expected an identifier on line %zu at column %zu (character %zu)\n",
+				        argv0, tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
 			}
 			stack = calloc(1, sizeof(*stack));
 			stack->token = tokens[i];
@@ -490,16 +549,16 @@ again:
 			state = EXPECT_EQUALS;
 			for (j = 0; j < nrule_names; j++) {
 				if (!strcmp(rule_names[j], tokens[i]->s)) {
-					eprintf("duplicate definition of \"%s\" on line %zu at column %zu (character %zu)\n",
-					        tokens[i]->s, tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
+					eprintf("%s: duplicate definition of \"%s\" on line %zu at column %zu (character %zu)\n",
+					        argv0, tokens[i]->s, tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
 				}
 			}
 			break;
 
 		case EXPECT_EQUALS:
 			if (type != SYMBOL || tokens[i]->s[0] != '=') {
-				eprintf("expected an '=' on line %zu at column %zu (character %zu)\n",
-				        tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
+				eprintf("%s: expected an '=' on line %zu at column %zu (character %zu)\n",
+				        argv0, tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
 			}
 			free(tokens[i]);
 			state = EXPECT_OPERAND;
@@ -517,8 +576,8 @@ again:
 					goto add;
 				} else {
 				stray:
-					eprintf("stray '%c' on line %zu at column %zu (character %zu)\n",
-					        tokens[i]->s[0], tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
+					eprintf("%s: stray '%c' on line %zu at column %zu (character %zu)\n",
+					        argv0, tokens[i]->s[0], tokens[i]->lineno, tokens[i]->column, tokens[i]->character);
 				}
 			} else {
 			add:
@@ -553,15 +612,16 @@ again:
 				stack = stack->parent;
 			} else if (tokens[i]->s[0] == ';') {
 				if (stack->token->s[0] == ')' || stack->token->s[0] == ']' || stack->token->s[0] == '}')
-					eprintf("premature end of rule on line %zu at column %zu (character %zu): "
+					eprintf("%s: premature end of rule on line %zu at column %zu (character %zu): "
 					        "'%s' on line %zu at column %zu (character %zu) not closed\n",
-					        tokens[i]->lineno, tokens[i]->column, tokens[i]->character, stack->token->s,
+					        argv0, tokens[i]->lineno, tokens[i]->column, tokens[i]->character, stack->token->s,
 					        stack->token->lineno, stack->token->column, stack->token->character);
 				emit_and_free_rule(stack);
 				free(tokens[i]);
 				state = NEW_RULE;
 			} else {
-				eprintf("expected a '|', ',', or '%c' on line %zu at column %zu (character %zu)\n",
+				eprintf("%s: expected a '|', ',', or '%c' on line %zu at column %zu (character %zu)\n",
+				        argv0,
 				        stack->token->s[0] == '(' ? ')' :
 				        stack->token->s[0] == '[' ? ']' :
 				        stack->token->s[0] == '{' ? '}' : ';',
@@ -575,7 +635,7 @@ again:
 	}
 	free(tokens);
 	if (state != NEW_RULE)
-		eprintf("premature end of file\n");
+		eprintf("%s: premature end of file\n", argv0);
 
 	err = 0;
 	qsort(rule_names, nrule_names, sizeof(*rule_names), strpcmp);
@@ -588,23 +648,23 @@ again:
 		} else if (!strcmp(rule_names[i], argv[0])) {
 			i++;
 		} else if (cmp < 0) {
-			weprintf("rule \"%s\" defined but not used\n", rule_names[i]);
+			eprintf("%s: rule \"%s\" defined but not used\n", argv0, rule_names[i]);
 			i++;
 			err = 1;
 		} else {
-			weprintf("rule \"%s\" used but not defined\n", want_rules[j]);
+			eprintf("%s: rule \"%s\" used but not defined\n", argv0, want_rules[j]);
 			for (j++; j < nwant_rules && !strcmp(want_rules[j - 1], want_rules[j]); j++);
 			err = 1;
 		}
 	}
 	for (; i < nrule_names; i++) {
 		if (strcmp(rule_names[i], argv[0])) {
-			weprintf("rule \"%s\" defined but not used\n", rule_names[i]);
+			eprintf("%s: rule \"%s\" defined but not used\n", argv0, rule_names[i]);
 			err = 1;
 		}
 	}
 	while (j < nwant_rules) {
-		weprintf("rule \"%s\" used but not defined\n", want_rules[j]);
+		eprintf("%s: rule \"%s\" used but not defined\n", argv0, want_rules[j]);
 		for (j++; j < nwant_rules && !strcmp(want_rules[j - 1], want_rules[j]); j++);
 		err = 1;
 	}
@@ -614,7 +674,7 @@ again:
 	for (i = 0; i < nrule_names; i++)
 		if (!strcmp(rule_names[i], argv[0]))
 			goto found_main;
-	eprintf("specified main rule (\"%s\") was not defined\n", argv[0]);
+	eprintf("%s: specified main rule (\"%s\") was not defined\n", argv0, argv[0]);
 
 found_main:
 	printf("static union libparser_sentence noeof_sentence = {.type = LIBPARSER_SENTENCE_TYPE_EXCEPTION};\n");
@@ -659,6 +719,6 @@ found_main:
 	free(want_rules);
 
 	if (ferror(stdout) || fflush(stdout) || fclose(stdout))
-		eprintf("printf:");
+		eprintf("%s: printf: %s\n", argv0, strerror(errno));
 	return 0;
 }
