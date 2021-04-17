@@ -120,3 +120,7 @@ EXTENDED DESCRIPTION
 	Rules that begin with an underscore will not show up for
 	the application in the parse result, the rest of the rules
 	will appear in the tree-formatted result.
+
+	Left recursion is illegal (it will cause stack overflow at
+	runtime as the empty condition before the recursion is always
+	met).
