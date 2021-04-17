@@ -138,7 +138,7 @@ check_utf8(char *buf, size_t *ip, size_t len)
 		cp |= (uint32_t)(unsigned char)(buf[*ip + i] ^ 0x80);
 	}
 	*ip += req;
-	if ((cp & UINT32_C(0xD8000)) == UINT32_C(0xD8000))
+	if ((cp & UINT32_C(0xFFF8000)) == UINT32_C(0xD8000))
 		return 0;
 	if (cp < (uint32_t)1 << (7 + 0 * 6))
 		return 0;
