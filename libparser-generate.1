@@ -1,0 +1,63 @@
+.TH LIBPARSER-GENERATE 7 LIBPARSER
+.SH NAME
+libparser-generate \- Generate grammar definition for libparser
+
+.SH SYNPOSIS
+.B libparser-generate
+.I main-rule
+
+.SH DESCRIPTION
+The
+.B libparser-generate
+utility parsers the standard input according to the
+grammar specified in
+.BR libparser (7)
+and prints to the standard output a C source file
+containing the definition for
+.B libparser_rule
+that is declared in
+.B <libparser.h>
+as
+.PP
+.RS
+.nf
+.I extern const struct libparser_rule *const libparser_rule_table[];
+.fi
+.RE
+.PP
+This table will contain all defined rules, plus three
+special rules:
+.TP
+.B @start
+.nf
+.BI "@start = " main-rule ", (@eof | @noeof);"
+.fi
+
+where
+.I main-rule
+is the value of the
+.I main-rule
+operand in the command line. This
+.RB [ @start ]
+is the rule the
+.BR libparser_parse_file (3)
+function will use when parsing input.
+.TP
+.B @eof
+This rule has a special definition, it is
+matched if the end of the file has been
+reached.
+.TP
+.B @noeof
+.nf
+.B "@noeof = -;"
+.fi
+
+This rule is simple defined as an exception,
+causing the parsing to terminate at the end
+with an exception of it didn't reach the end
+of the file.
+
+.SH SEE ALSO
+.BR libparser (7),
+.BR libparser_parse_file (3)

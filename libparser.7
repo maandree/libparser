@@ -1,0 +1,153 @@
+.TH LIBPARSER 7 LIBPARSER
+.SH NAME
+libparser \- Context-free grammar parsing library
+
+.SH DESCRIPTION
+.B libparser
+is a small C library that parses input based on a
+precompiled context-free grammar.
+.PP
+To use
+.BR libparser ,
+a developer should write a syntax for the input that
+his application shall parse, in a syntax based on
+Extended Backus–Naur form (EBNF) (somewhat simplified
+but also somewhat extended).
+.BR libparser-generate (1)
+is then used to create a C source file describing the
+syntax, which shall be compiled into an object file
+with a C compiler. This file provides a definition of
+a global variable declared in
+.BR <libparser.h> :
+.IR libparser_rule_table .
+This variable is used when calling
+.BR libparser_parse_file (3)
+to parse the application's input.
+.PP
+.B libparser
+is proudly non-self-hosted.
+
+.SH EXTENDED DESCRIPTION
+.SS Syntax
+The grammar for
+.BR libparser-generate (1)'s
+input can be described in its own grammar:
+.PP
+.RS
+.nf
+(* CHARACTER CLASSES *)
+
+_space    = \(dq \(dq | \(dq\en\(dq | \(dq\et\(dq;
+_alpha    = <\(dqa\(dq, \(dqz\(dq> | <\(dqA\(dq, \(dqZ\(dq>;
+_octal    = <\(dq0\(dq, \(dq7\(dq>;
+_digit    = <\(dq0\(dq, \(dq9\(dq>;
+_xdigit   = _digit | <\(dqa\(dq, \(dqf\(dq> | <\(dqA\(dq, \(dqF\(dq>;
+_nonascii = <128, 255>;
+
+
+(* WHITESPACE/COMMENTS, THE GRAMMAR IS FREE-FORM *)
+
+_comment_char = _space | <\(dq!\(dq, 0x29> | <0x2B, 0xFF>;
+_comment_tail = [_comment_char], (\(dq*)\(dq | _comment_tail);
+_comment      = \(dq(*\(dq, _comment_tail;
+
+_ = {_space | _comment};
+
+
+(* IDENTIFIERS *)
+
+_identifier_head = _alpha | _digit | _nonascii | \(dq_\(dq;
+_identifier_tail = _identifier_head | \(dq-\(dq;
+
+identifier = _identifier_head, {_identifier_tail};
+
+
+(* STRINGS *)
+
+_escape_simple = \(dq\e\e\(dq | \(dq\e\(dq\(dq | \(dq'\(dq | \(dqa\(dq | \(dqb\(dq | \(dqf\(dq | \(dqn\(dq | \(dqr\(dq | \(dqv\(dq;
+_escape_hex    = (\(dqx\(dq | \(dqX\(dq), _xdigit, _xdigit;
+_escape_octal  = _octal, {_octal}; (* May not exceed 255 in base 10 *)
+_escape        = _escape_simple | _escape_hex | _escape_octal | -;
+_character     = \(dq\e\e\(dq, _escape | <1, \(dq!\(dq> | <\(dq#\(dq, 0xFF>;
+
+string    = \(dq\e\(dq\(dq, _character, {_character}, \(dq\e\(dq\(dq;
+character = \(dq\e\(dq\(dq, _character, \(dq\e\(dq\(dq;
+
+
+(* INTEGERS *)
+
+_decimal     = _digit, {_digit};
+_hexadecimal = \(dq0\(dq, (\(dqx\(dq | \(dqX\(dq), _xdigit, {_xdigit};
+
+integer = _decimal | _hexadecimal; (* May not exceed 255. *)
+
+
+(* GROUPINGS *)
+
+_low  = character | integer;
+_high = character | integer;
+
+concatenation = _, _operand, _, {\(dq,\(dq, _, _operand, _};
+alternation   = _, concatenation, _, {\(dq|\(dq, _, concatenation, _};
+optional      = _, \(dq[\(dq, _, _expression, _, \(dq]\(dq, _;
+repeated      = _, \(dq{\(dq, _, _expression, _, \(dq}\(dq, _;
+group         = _, \(dq(\(dq, _, _expression, _, \(dq)\(dq, _;
+char-range    = _, \(dq<\(dq, _, _low, _, \(dq,\(dq, _, _high, \(dq_\(dq, \(dq>\(dq, _;
+exception     = _, \(dq-\(dq, _;
+embedded-rule = _, identifier, _;
+
+_literal = char-range | exception | string;
+_group   = optional | repeated | group | embedded-rule;
+_operand = _group | _literal;
+
+_expression = alternation;
+
+
+(* RULES *)
+
+rule = _, identifier, _, \(dq=\(dq, _, _expression, \(dq;\(dq;
+
+(* This is the root rule of the grammar. *)
+grammar = {rules, _}, _;
+.fi
+.PP
+.RE
+The file must be encoded in UTF-8, with LF as the line
+break (CR and FF are illegal just becuase).
+.PP
+In alternations, the first (leftmost) match is selected.
+The parser is able to backtrack incase it later turns
+out that it could not finish that branch. Whenever an
+exception is reached, the parser will terminate there.
+.PP
+Repeated symbols may occour any number of times,
+including zero. The compiler is able to backtrack if it
+takes too much.
+.PP
+Concatenation has higher precedence than alternation,
+groups
+.RB (\(dq ( "\(dq, ..., \(dq" ) \(dq)
+have no semantic meaning and are useful only to put a
+alternation inside a concatenation without creating a
+new rule for that.
+.PP
+In character ranges, the
+.B _high
+and
+.B _low
+values must be at least 0 and at most 255, and
+.B _high
+must be greater than
+.BR _low .
+.PP
+Rules that begin with an underscore will not show up
+for the application in the parse result, the rest of
+the rules will appear in the tree-formatted result.
+.PP
+Left recursion is illegal (it will cause stack
+overflow at runtime as the empty condition before the
+recursion is always met).
+
+.SH SEE ALSO
+.BR libparser-generate (1),
+.BR libparser_parse_file (3)

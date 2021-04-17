@@ -19,7 +19,7 @@ DESCRIPTION
 	libparser is proudly non-self-hosted.
 
 EXTENDED DESCRIPTION
-   Syntax
+    Syntax
 	The grammar for libparser-generate(1)'s input can be described
 	in its own grammar:
 
@@ -67,7 +67,7 @@ EXTENDED DESCRIPTION
 		_decimal     = _digit, {_digit};
 		_hexadecimal = "0", ("x" | "X"), _xdigit, {_xdigit};
 
-		integer  = _decimal | _hexadecimal; (* May not exceed 255. *)
+		integer = _decimal | _hexadecimal; (* May not exceed 255. *)
 
 
 		(* GROUPINGS *)
