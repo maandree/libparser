@@ -4,6 +4,9 @@
 
 #include <stddef.h>
 
+
+/* This is mostly internal (unless you want to programmatically create a grammar) { */
+
 union libparser_sentence;
 
 enum libparser_sentence_type {
@@ -59,6 +62,9 @@ struct libparser_rule {
 	const char *name;
 	union libparser_sentence *sentence;
 };
+
+/* } */
+
 
 struct libparser_unit {
 	const char *rule;
