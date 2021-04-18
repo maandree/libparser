@@ -316,11 +316,10 @@ tokenise(const char *data)
 			break;
 
 		case SPACE:
-			if (isspace(data[i])) {
+			if (isspace(data[i]))
 				goto add_char;
-			} else {
+			else
 				goto add_token_and_do_again;
-			}
 			break;
 
 		default:
