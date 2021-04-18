@@ -48,6 +48,7 @@ install: libparser.a libparser.$(LIBEXT) libparser-generate
 	mkdir -p -- "$(DESTDIR)$(PREFIX)/lib"
 	mkdir -p -- "$(DESTDIR)$(PREFIX)/include"
 	mkdir -p -- "$(DESTDIR)$(MANPREFIX)/man1/"
+	mkdir -p -- "$(DESTDIR)$(MANPREFIX)/man3/"
 	mkdir -p -- "$(DESTDIR)$(MANPREFIX)/man7/"
 	cp -- libparser-generate "$(DESTDIR)$(PREFIX)/bin"
 	cp -- libparser.a "$(DESTDIR)$(PREFIX)/lib"
@@ -56,6 +57,7 @@ install: libparser.a libparser.$(LIBEXT) libparser-generate
 	ln -sf -- libparser.$(LIBMAJOREXT) "$(DESTDIR)$(PREFIX)/lib/libparser.$(LIBEXT)"
 	cp -- libparser.h "$(DESTDIR)$(PREFIX)/include"
 	cp -- libparser-generate.1 "$(DESTDIR)$(MANPREFIX)/man1/"
+	cp -- libparser_parse_file.3 "$(DESTDIR)$(MANPREFIX)/man3/"
 	cp -- libparser.7 "$(DESTDIR)$(MANPREFIX)/man7/"
 
 uninstall:
@@ -66,6 +68,7 @@ uninstall:
 	-rm -f -- "$(DESTDIR)$(PREFIX)/lib/libparser.$(LIBEXT)"
 	-rm -f -- "$(DESTDIR)$(PREFIX)/include/libparser.h"
 	-rm -f -- "$(DESTDIR)$(MANPREFIX)/man1/libparser-generate.1"
+	-rm -f -- "$(DESTDIR)$(MANPREFIX)/man3/libparser_parse_file.3"
 	-rm -f -- "$(DESTDIR)$(MANPREFIX)/man7/libparser.7"
 
 clean:

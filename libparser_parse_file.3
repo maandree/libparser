@@ -1,0 +1,116 @@
+.TH LIBPARSER_PARSE_FILE 3 LIBPARSER
+.SH NAME
+libparser_parse_file \- Parse input with libparser
+
+.SH SYNPOSIS
+.nf
+#include <libparser.h>
+
+struct libparser_unit {
+	const char *\fIrule\fP;
+	struct libparser_unit *\fIin\fP;
+	struct libparser_unit *\fInext\fP;
+	size_t \fIstart\fP;
+	size_t \fIend\fP;
+};
+
+extern const struct libparser_rule *const \fIlibparser_rule_table\fP[];
+
+int libparser_parse_file(const struct libparser_rule *const \fIrules\fP[],
+                         const char *\fIdata\fP, size_t \fIlength\fP,
+                         struct libparser_unit **\fIrootp\fP);
+.fi
+.PP
+Link with
+.IR \-lparser .
+
+.SH DESCRIPTION
+The
+.BR libparser_parse_file ()
+function parses the input given in the
+.I data
+parameter according to the grammar of the
+.B @start
+rule specified in the rule table specified in the
+.I rules
+parameter, which should be
+.I libparser_rule_table
+(see
+.BR libparser-generate (1)
+for more information.
+.PP
+The
+.I length
+argument shall specify the byte length of
+the input
+.IR data .
+.PP
+The resulting parse tree output, on success
+completion to
+.IR *rootp ,
+which must be manually and recursively deallocated
+with the
+.BR free (3)
+function when it is no longer need.
+.PP
+.IR *rootp->in
+will point to the result of the main rule as
+specified in when the
+.BR libparser-generate (1)
+utility was ran, and
+.IR *rootp->in->next
+will either point to
+.B @eof
+or
+.BR @noeof .
+.IR *rootp->next
+will be
+.IR NULL .
+For each node in the parsing tree,
+.I rule
+with be non-NULL, will not begin with an underscore
+.RB ( _ ),
+and will name the rule that the input matched in
+the node
+.RB ( \(dq@start\(dq
+for
+.IR *rootp ).
+.I start
+and
+.I end
+will pointer index of the first byte and the index
+one byte past the last byte in the input that matched
+to the rule for the node.
+.I in
+will point to the first closest descent from the node
+in the parse tree
+.RI ( NULL
+if none; rules starting with an underscore
+.RB ( _ )
+are ignored), and
+.I next
+will point to the node's next sibling in the parse tree
+.RI ( NULL
+if the node is its parents last closest descent).
+
+.SH RETURN VALUE
+The
+.BR libparser_parse_file ()
+function returns 1 or 0 upon successful completion;
+otherwise it returns -1 and sets
+.I errno
+to indicate the error. The return upon successful
+completion is normally 1, but is 0 if the parsing
+stopped at an exception mark
+.RB ( - ).
+
+.SH ERRORS
+The
+.BR libparser_parse_file ()
+function may fail for any reason specified for the
+.BR calloc (3)
+function.
+
+.SH SEE ALSO
+.BR libparser (7),
+.BR libparser-generate (1)
