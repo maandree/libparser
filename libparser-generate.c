@@ -108,7 +108,7 @@ strpcmp(const void *av, const void *bv)
 static int
 isidentifier(char c)
 {
-	return isalpha(c) || isdigit(c) || !isascii(c) || c == '_';
+	return isalnum(c) || !isascii(c) || c == '_';
 }
 
 
