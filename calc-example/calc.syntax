@@ -1,5 +1,5 @@
 _WHITESPACE   = " " | "\t" | " ";
-_COMMENT      = "(*", {!"*)", <0, 0xFF>}, "*)";
+_COMMENT      = "(*", {!"*)", <0, 0xFF>}, ("*)" | -);
 
 _             = {_WHITESPACE | _COMMENT};
 
