@@ -35,7 +35,7 @@ EXTENDED DESCRIPTION
 
 		(* WHITESPACE/COMMENTS, THE GRAMMAR IS FREE-FORM *)
 
-		_comment_char    = _space | !"*", "\"", <"!", 0xFF>;
+		_comment_char    = _space | !"*", !"\"", <"!", 0xFF>;
 		_comment_tail    = [_comment_char], [_string], ("*)" | _comment_tail | -);
 		_comment         = "(*", _comment_tail;
 

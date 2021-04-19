@@ -47,7 +47,7 @@ _nonascii        = <128, 255>;
 
 (* WHITESPACE/COMMENTS, THE GRAMMAR IS FREE-FORM *)
 
-_comment_char    = _space | !\(dq*\(dq, <\(dq!\(dq, 0xFF>;
+_comment_char    = _space | !\(dq*\(dq, !\(dq\e\(dq\(dq, <\(dq!\(dq, 0xFF>;
 _comment_tail    = [_comment_char], [_string], (\(dq*)\(dq | _comment_tail | -);
 _comment         = \(dq(*\(dq, _comment_tail;
 
