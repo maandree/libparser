@@ -1,2 +1,21 @@
 Add support for prelexed
+	%type shall be used to match against a lexical type.
+
+	Some languages may require (or at least it would helpful)
+	context handling during parsing. For this, rule should
+	be annotatable to add hooks to the parser, these will be
+	place before the rule name: @open(function-name) should
+	call function-name at the beginning of the rule, and
+	@close(function-name) should call function-name at the
+	end of the rule. When the parser decides that it took
+	the wrong path, it will check if either function has
+	added all callback function for when the node is retracted,
+	and if so call that function. The two former hooks shall
+	also be able to call the parser to commit to the path
+	it's on, which will cause the parser to fall if it needs
+	to backtrack bejoined that point, this will also allow
+	the application to take action on parsed rules and
+	deallocate memory that is no longer needed after that.
+	The hooks shall also be able to cause the parser to abort.
+
 Add tests
