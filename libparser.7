@@ -37,21 +37,21 @@ input can be described in its own grammar:
 .nf
 (* CHARACTER CLASSES *)
 
-_space    = \(dq \(dq | \(dq\en\(dq | \(dq\et\(dq;
-_alpha    = <\(dqa\(dq, \(dqz\(dq> | <\(dqA\(dq, \(dqZ\(dq>;
-_octal    = <\(dq0\(dq, \(dq7\(dq>;
-_digit    = <\(dq0\(dq, \(dq9\(dq>;
-_xdigit   = _digit | <\(dqa\(dq, \(dqf\(dq> | <\(dqA\(dq, \(dqF\(dq>;
-_nonascii = <128, 255>;
+_space           = \(dq \(dq | \(dq\en\(dq | \(dq\et\(dq;
+_alpha           = <\(dqa\(dq, \(dqz\(dq> | <\(dqA\(dq, \(dqZ\(dq>;
+_octal           = <\(dq0\(dq, \(dq7\(dq>;
+_digit           = <\(dq0\(dq, \(dq9\(dq>;
+_xdigit          = _digit | <\(dqa\(dq, \(dqf\(dq> | <\(dqA\(dq, \(dqF\(dq>;
+_nonascii        = <128, 255>;
 
 
 (* WHITESPACE/COMMENTS, THE GRAMMAR IS FREE-FORM *)
 
-_comment_char = _space | <\(dq!\(dq, 0x29> | <0x2B, 0xFF>;
-_comment_tail = [_comment_char], (\(dq*)\(dq | _comment_tail);
-_comment      = \(dq(*\(dq, _comment_tail;
+_comment_char    = _space | !\(dq*\(dq, <\(dq!\(dq, 0xFF>;
+_comment_tail    = [_comment_char], [_string], (\(dq*)\(dq | _comment_tail | -);
+_comment         = \(dq(*\(dq, _comment_tail;
 
-_ = {_space | _comment};
+_                = {_space | _comment};
 
 
 (* IDENTIFIERS *)
@@ -59,56 +59,58 @@ _ = {_space | _comment};
 _identifier_head = _alpha | _digit | _nonascii | \(dq_\(dq;
 _identifier_tail = _identifier_head | \(dq-\(dq;
 
-identifier = _identifier_head, {_identifier_tail};
+identifier       = _identifier_head, {_identifier_tail};
 
 
 (* STRINGS *)
 
-_escape_simple = \(dq\e\e\(dq | \(dq\e\(dq\(dq | \(dq'\(dq | \(dqa\(dq | \(dqb\(dq | \(dqf\(dq | \(dqn\(dq | \(dqr\(dq | \(dqv\(dq;
-_escape_hex    = (\(dqx\(dq | \(dqX\(dq), _xdigit, _xdigit;
-_escape_octal  = _octal, {_octal}; (* May not exceed 255 in base 10 *)
-_escape        = _escape_simple | _escape_hex | _escape_octal | -;
-_character     = \(dq\e\e\(dq, _escape | <1, \(dq!\(dq> | <\(dq#\(dq, 0xFF>;
+_escape_simple   = \(dq\e\e\(dq | \(dq\e\(dq\(dq | \(dq'\(dq | \(dqa\(dq | \(dqb\(dq | \(dqf\(dq | \(dqn\(dq | \(dqr\(dq | \(dqv\(dq;
+_escape_hex      = (\(dqx\(dq | \(dqX\(dq), _xdigit, _xdigit;
+_escape_octal    = _octal, {_octal}; (* May not exceed 255 in base 10 *)
+_escape          = _escape_simple | _escape_hex | _escape_octal | -;
+_character       = \(dq\e\e\(dq, _escape | !\(dq\e\(dq\(dq, <1, 0xFF>;
+_string          = \(dq\e\(dq\(dq, _character, {_character}, (\(dq\e\(dq\(dq | -);
 
-string    = \(dq\e\(dq\(dq, _character, {_character}, \(dq\e\(dq\(dq;
-character = \(dq\e\(dq\(dq, _character, \(dq\e\(dq\(dq;
+string           = _string;
+character        = \(dq\e\(dq\(dq, _character, (\(dq\e\(dq\(dq | -);
 
 
 (* INTEGERS *)
 
-_decimal     = _digit, {_digit};
-_hexadecimal = \(dq0\(dq, (\(dqx\(dq | \(dqX\(dq), _xdigit, {_xdigit};
+_decimal         = _digit, {_digit};
+_hexadecimal     = \(dq0\(dq, (\(dqx\(dq | \(dqX\(dq), _xdigit, {_xdigit};
 
-integer = _decimal | _hexadecimal; (* May not exceed 255. *)
+integer          = _decimal | _hexadecimal; (* May not exceed 255. *)
 
 
 (* GROUPINGS *)
 
-_low  = character | integer;
-_high = character | integer;
+_low             = character | integer;
+_high            = character | integer;
 
-concatenation = _operand, {_, \(dq,\(dq, _, _operand};
-alternation   = concatenation, {_, \(dq|\(dq, _, concatenation};
-optional      = \(dq[\(dq, _, _expression, _, \(dq]\(dq;
-repeated      = \(dq{\(dq, _, _expression, _, \(dq}\(dq;
-group         = \(dq(\(dq, _, _expression, _, \(dq)\(dq;
-char-range    = \(dq<\(dq, _, _low, _, \(dq,\(dq, _, _high, \(dq_\(dq, \(dq>\(dq;
-exception     = \(dq-\(dq;
-embedded-rule = identifier;
+rejection        = \(dq!\(dq, _, _operand;
+concatenation    = _operand, {_, \(dq,\(dq, _, _operand};
+alternation      = concatenation, {_, \(dq|\(dq, _, concatenation};
+optional         = \(dq[\(dq, _, _expression, _, \(dq]\(dq;
+repeated         = \(dq{\(dq, _, _expression, _, \(dq}\(dq;
+group            = \(dq(\(dq, _, _expression, _, \(dq)\(dq;
+char-range       = \(dq<\(dq, _, _low, _, \(dq,\(dq, _, _high, \(dq_\(dq, \(dq>\(dq;
+exception        = \(dq-\(dq;
+embedded-rule    = identifier;
 
-_literal = char-range | exception | string;
-_group   = optional | repeated | group | embedded-rule;
-_operand = _group | _literal;
+_literal         = char-range | exception | string;
+_group           = optional | repeated | group | embedded-rule;
+_operand         = _group | _literal | rejection;
 
-_expression = alternation;
+_expression      = alternation;
 
 
 (* RULES *)
 
-rule = identifier, _, \(dq=\(dq, _, _expression, _, \(dq;\(dq;
+rule             = identifier, _, \(dq=\(dq, _, _expression, _, \(dq;\(dq;
 
 (* This is the root rule of the grammar. *)
-grammar = _, {rules, _};
+grammar          = _, {rules, _};
 .fi
 .PP
 .RE

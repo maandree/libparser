@@ -12,6 +12,7 @@ union libparser_sentence;
 enum libparser_sentence_type {
 	LIBPARSER_SENTENCE_TYPE_CONCATENATION, /* .binary */
 	LIBPARSER_SENTENCE_TYPE_ALTERNATION,   /* .binary */
+	LIBPARSER_SENTENCE_TYPE_REJECTION,     /* .unary */
 	LIBPARSER_SENTENCE_TYPE_OPTIONAL,      /* .unary */
 	LIBPARSER_SENTENCE_TYPE_REPEATED,      /* .unary */
 	LIBPARSER_SENTENCE_TYPE_STRING,        /* .string */

@@ -361,12 +361,13 @@ emit_and_free_sentence(struct node *node, size_t *indexp)
 		free(node);
 	}
 
-	if (node->token->s[0] == '[' || node->token->s[0] == '{') {
+	if (node->token->s[0] == '[' || node->token->s[0] == '{' || node->token->s[0] == '!') {
 		emit_and_free_sentence(node->data, indexp);
 		printf("static union libparser_sentence sentence_%zu_%zu = {.unary = {"
 		           ".type = LIBPARSER_SENTENCE_TYPE_%s, .sentence = &sentence_%zu_%zu"
 		       "}};\n",
-		       nrule_names, index, node->token->s[0] == '[' ? "OPTIONAL" : "REPEATED", nrule_names, index + 1);
+		       nrule_names, index, node->token->s[0] == '[' ? "OPTIONAL" :
+		                           node->token->s[0] == '{' ? "REPEATED" : "REJECTION", nrule_names, index + 1);
 	} else if (node->token->s[0] == '<') {
 		low = node->data;
 		high = node->data->next;
@@ -551,11 +552,16 @@ main(int argc, char *argv[])
 again:
 	for (; tokens[i]; i++) {
 		if (tokens[i + 1] && tokens[i]->s[0] == '(' && tokens[i + 1]->s[0] == '*') {
+			free(tokens[i]);
+			free(tokens[i + 1]);
 			for (i += 2; tokens[i] && tokens[i + 1]; i++) {
 				if (tokens[i]->s[0] == '*' && tokens[i + 1]->s[0] == ')') {
+					free(tokens[i]);
+					free(tokens[i + 1]);
 					i += 2;
 					goto again;
 				}
+				free(tokens[i]);
 			}
 			eprintf("%s: premature end of file\n", argv0);
 		}
@@ -612,6 +618,8 @@ again:
 					stack->head = &stack->data;
 				} else if (tokens[i]->s[0] == '-') {
 					goto add;
+				} else if (tokens[i]->s[0] == '!') {
+					goto push_stack;
 				} else {
 				stray:
 					eprintf("%s: stray '%c' on line %zu at column %zu (character %zu)\n",
@@ -625,6 +633,11 @@ again:
 			break;
 
 		case EXPECT_OPERATOR:
+			while (stack->token->s[0] == '!') {
+				*stack->parent->head = stack;
+				stack->parent->head = &stack->next;
+				stack = stack->parent;
+			}
 			if (tokens[i]->s[0] == '|' || tokens[i]->s[0] == ',') {
 				state = EXPECT_OPERAND;
 			add_singleton:

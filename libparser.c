@@ -112,6 +112,18 @@ try_match(const char *rule, const union libparser_sentence *sentence, struct con
 		}
 		break;
 
+	case LIBPARSER_SENTENCE_TYPE_REJECTION:
+		unit->in = try_match(NULL, sentence->unary.sentence, ctx);
+		if (unit->in) {
+			free_unit(unit->in, ctx);
+			if (!ctx->exception)
+				goto mismatch;
+			ctx->exception = 0;
+		}
+		ctx->position = unit->start;
+		unit->rule = NULL;
+		break;
+
 	case LIBPARSER_SENTENCE_TYPE_OPTIONAL:
 		unit->in = try_match(NULL, sentence->unary.sentence, ctx);
 		goto prone;

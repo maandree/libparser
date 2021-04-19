@@ -1,27 +1,29 @@
-_WHITESPACE = " " | "\t" | " ";
-_ = {_WHITESPACE};
+_WHITESPACE   = " " | "\t" | " ";
+_COMMENT      = "(*", {!"*)", <0, 0xFF>}, "*)";
+
+_             = {_WHITESPACE | _COMMENT};
 
 
-DIGIT = <"0", "9">;
+DIGIT         = <"0", "9">;
 
-ADD = _, ("+"),             _;
-SUB = _, ("-" | "−"),       _;
-MUL = _, ("*" | "⋅" | "×"), _;
-DIV = _, ("/" | "∕" | "÷"), _;
-
-
-sign = ADD | SUB;
-
-unsigned = DIGIT, {DIGIT | _WHITESPACE | "_" | "'"};
-
-_number = unsigned | "(", _expr, (")" | -);
-
-number = _number, {_, _number}; (* optionally with implicit multiplication *)
-
-value = [sign], number;
-
-_expr = hyper1;
+ADD           = _, ("+"),             _;
+SUB           = _, ("-" | "−"),       _;
+MUL           = _, ("*" | "⋅" | "×"), _;
+DIV           = _, ("/" | "∕" | "÷"), _;
 
 
-hyper1 = _, hyper2, {(ADD | SUB), (hyper2 | -)}, _;
-hyper2 = _, value, {(MUL | DIV), (value | -)}, _;
+sign          = ADD | SUB;
+
+unsigned      = DIGIT, {DIGIT | _WHITESPACE | "_" | "'"};
+
+_number       = unsigned | "(", _expr, (")" | -);
+
+number        = _number, {_, _number}; (* optionally with implicit multiplication *)
+
+value         = [sign], number;
+
+_expr         = hyper1;
+
+
+hyper1        = _, hyper2, {(ADD | SUB), (hyper2 | -)}, _;
+hyper2        = _, value, {(MUL | DIV), (value | -)}, _;

@@ -1,4 +1,4 @@
-NAME
+>NAME
 	libparser - Context-free grammar parsing library
 
 DESCRIPTION
@@ -25,21 +25,21 @@ EXTENDED DESCRIPTION
 
 		(* CHARACTER CLASSES *)
 
-		_space    = " " | "\n" | "\t";
-		_alpha    = <"a", "z"> | <"A", "Z">;
-		_octal    = <"0", "7">;
-		_digit    = <"0", "9">;
-		_xdigit   = _digit | <"a", "f"> | <"A", "F">;
-		_nonascii = <128, 255>;
+		_space           = " " | "\n" | "\t";
+		_alpha           = <"a", "z"> | <"A", "Z">;
+		_octal           = <"0", "7">;
+		_digit           = <"0", "9">;
+		_xdigit          = _digit | <"a", "f"> | <"A", "F">;
+		_nonascii        = <128, 255>;
 
 
 		(* WHITESPACE/COMMENTS, THE GRAMMAR IS FREE-FORM *)
 
-		_comment_char = _space | <"!", 0x29> | <0x2B, 0xFF>;
-		_comment_tail = [_comment_char], ("*)" | _comment_tail);
-		_comment      = "(*", _comment_tail;
+		_comment_char    = _space | !"*", "\"", <"!", 0xFF>;
+		_comment_tail    = [_comment_char], [_string], ("*)" | _comment_tail | -);
+		_comment         = "(*", _comment_tail;
 
-		_ = {_space | _comment};
+		_                = {_space | _comment};
 
 
 		(* IDENTIFIERS *)
@@ -47,56 +47,58 @@ EXTENDED DESCRIPTION
 		_identifier_head = _alpha | _digit | _nonascii | "_";
 		_identifier_tail = _identifier_head | "-";
 
-		identifier = _identifier_head, {_identifier_tail};
+		identifier       = _identifier_head, {_identifier_tail};
 
 
 		(* STRINGS *)
 
-		_escape_simple = "\\" | "\"" | "'" | "a" | "b" | "f" | "n" | "r" | "v";
-		_escape_hex    = ("x" | "X"), _xdigit, _xdigit;
-		_escape_octal  = _octal, {_octal}; (* May not exceed 255 in base 10 *)
-		_escape        = _escape_simple | _escape_hex | _escape_octal | -;
-		_character     = "\\", _escape | <1, "!"> | <"#", 0xFF>;
+		_escape_simple   = "\\" | "\"" | "'" | "a" | "b" | "f" | "n" | "r" | "v";
+		_escape_hex      = ("x" | "X"), _xdigit, _xdigit;
+		_escape_octal    = _octal, {_octal}; (* May not exceed 255 in base 10 *)
+		_escape          = _escape_simple | _escape_hex | _escape_octal | -;
+		_character       = "\\", _escape | !"\"", <1, 0xFF>;
+		_string          = "\"", _character, {_character}, ("\"" | -);
 
-		string    = "\"", _character, {_character}, "\"";
-		character = "\"", _character, "\"";
+		string           = _string
+		character        = "\"", _character, ("\"" | -);
 
 
 		(* INTEGERS *)
 
-		_decimal     = _digit, {_digit};
-		_hexadecimal = "0", ("x" | "X"), _xdigit, {_xdigit};
+		_decimal         = _digit, {_digit};
+		_hexadecimal     = "0", ("x" | "X"), _xdigit, {_xdigit};
 
-		integer = _decimal | _hexadecimal; (* May not exceed 255. *)
+		integer          = _decimal | _hexadecimal; (* May not exceed 255. *)
 
 
 		(* GROUPINGS *)
 
-		_low  = character | integer;
-		_high = character | integer;
+		_low             = character | integer;
+		_high            = character | integer;
 
-		concatenation = _operand, {_, ",", _, _operand};
-		alternation   = concatenation, {_, "|", _, concatenation};
-		optional      = "[", _, _expression, _, "]";
-		repeated      = "{", _, _expression, _, "}";
-		group         = "(", _, _expression, _, ")";
-		char-range    = "<", _, _low, _, ",", _, _high, "_", ">";
-		exception     = "-";
-		embedded-rule = identifier;
+		rejection        = "!", _, _operand;
+		concatenation    = _operand, {_, ",", _, _operand};
+		alternation      = concatenation, {_, "|", _, concatenation};
+		optional         = "[", _, _expression, _, "]";
+		repeated         = "{", _, _expression, _, "}";
+		group            = "(", _, _expression, _, ")";
+		char-range       = "<", _, _low, _, ",", _, _high, "_", ">";
+		exception        = "-";
+		embedded-rule    = identifier;
 
-		_literal = char-range | exception | string;
-		_group   = optional | repeated | group | embedded-rule;
-		_operand = _group | _literal;
+		_literal         = char-range | exception | string;
+		_group           = optional | repeated | group | embedded-rule;
+		_operand         = _group | _literal | rejection;
 
-		_expression = alternation;
+		_expression      = alternation;
 
 
 		(* RULES *)
 
-		rule = identifier, _, "=", _, _expression, _, ";";
+		rule             = identifier, _, "=", _, _expression, _, ";";
 
 		(* This is the root rule of the grammar. *)
-		grammar = _, {rules, _};
+		grammar          = _, {rules, _};
 
 	The file must be encoded in UTF-8, with LF as the line
 	break (CR and FF are illegal just becuase).
