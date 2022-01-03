@@ -84,7 +84,7 @@ print_sentence(const union libparser_sentence *sentence, int indent)
 		break;
 
 	case LIBPARSER_SENTENCE_TYPE_EOF:
-		printf("%s%n", "(* end of file *)", &len);
+		printf("%s%n", "!<0x00, 0xFF>", &len);
 		indent += len;
 		break;
 
