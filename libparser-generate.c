@@ -454,6 +454,8 @@ order_sentences(struct node *node)
 				goto again_operators;
 			}
 		} else {
+			if (node->token->s[0] == '!')
+				node->data = order_sentences(node->data);
 			*head = node;
 			head = &node->next;
 		}
@@ -474,6 +476,7 @@ order_sentences(struct node *node)
 			prev = stack->next->next->next;
 			stack->data = stack->next->next;
 			stack->data->next = stack->next;
+			stack->next->next = NULL; /* for debugging */
 			stack->next = prev;
 		}
 	}
@@ -487,8 +490,7 @@ emit_and_free_rule(struct node *rule)
 {
 	size_t index = 0;
 
-	if (rule->data->token->s[0] != '<')
-		rule->data = order_sentences(rule->data);
+	rule->data = order_sentences(rule->data);
 	emit_and_free_sentence(rule->data, &index);
 
 	printf("static struct libparser_rule rule_%zu = {\"%s\", &sentence_%zu_0};\n", nrule_names, rule->token->s, nrule_names);
