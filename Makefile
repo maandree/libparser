@@ -1,10 +1,5 @@
 .POSIX:
 
-LIB_MAJOR = 1
-LIB_MINOR = 1
-LIB_VERSION = $(LIB_MAJOR).$(LIB_MINOR)
-
-
 CONFIGFILE = config.mk
 include $(CONFIGFILE)
 
@@ -14,6 +9,10 @@ OS = linux
 # Windows: windows
 include mk/$(OS).mk
 
+
+LIB_MAJOR = 1
+LIB_MINOR = 1
+LIB_VERSION = $(LIB_MAJOR).$(LIB_MINOR)
 
 
 all: libparser.a libparser.$(LIBEXT) libparser-generate calc-example/calc
@@ -31,6 +30,7 @@ libparser-generate: libparser-generate.o
 	$(CC) -o $@ libparser-generate.o $(LDFLAGS)
 
 libparser.a: libparser.o
+	@rm -f -- $@
 	$(AR) rc $@ libparser.o
 	$(AR) -s $@
 
@@ -53,6 +53,7 @@ install: libparser.a libparser.$(LIBEXT) libparser-generate
 	cp -- libparser-generate "$(DESTDIR)$(PREFIX)/bin"
 	cp -- libparser.a "$(DESTDIR)$(PREFIX)/lib"
 	cp -- libparser.$(LIBEXT) "$(DESTDIR)$(PREFIX)/lib/libparser.$(LIBMINOREXT)"
+	$(FIX_INSTALL_NAME) "$(DESTDIR)$(PREFIX)/lib/libparser.$(LIBMINOREXT)"
 	ln -sf -- libparser.$(LIBMINOREXT) "$(DESTDIR)$(PREFIX)/lib/libparser.$(LIBMAJOREXT)"
 	ln -sf -- libparser.$(LIBMAJOREXT) "$(DESTDIR)$(PREFIX)/lib/libparser.$(LIBEXT)"
 	cp -- libparser.h "$(DESTDIR)$(PREFIX)/include"
