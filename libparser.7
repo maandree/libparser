@@ -1,11 +1,11 @@
 .TH LIBPARSER 7 LIBPARSER
 .SH NAME
-libparser \- Context-free grammar parsing library
+libparser \- Right-context-sensitive grammar parsing library
 
 .SH DESCRIPTION
 .B libparser
 is a small C library that parses input based on a
-precompiled context-free grammar.
+precompiled right-context-sensitive grammar.
 .PP
 To use
 .BR libparser ,
@@ -149,6 +149,14 @@ the rules will appear in the tree-formatted result.
 Left recursion is illegal (it will cause stack
 overflow at runtime as the empty condition before the
 recursion is always met).
+
+.SS Right-context-sensitive grammar
+libparser originally used context-free grammar, but with
+introduction of the rejection rule, specifically the ability
+to reject a rejection, it became a prase for
+right-context-sensitive grammar which is a grammar that is
+that can generate any context-sensitive language, it is
+however weakly equivalent to context-sensitive grammar.
 
 .SH SEE ALSO
 .BR libparser-generate (1),

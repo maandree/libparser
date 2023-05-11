@@ -1,9 +1,9 @@
->NAME
-	libparser - Context-free grammar parsing library
+NAME
+	libparser - Right-context-sensitive grammar parsing library
 
 DESCRIPTION
 	libparser is a small C library that parses input based on a
-	precompiled context-free grammar.
+	precompiled right-context-sensitive grammar.
 
 	To use libparser, a developer should write a syntax for the
 	input that his application shall parse, in a syntax based
@@ -126,3 +126,11 @@ EXTENDED DESCRIPTION
 	Left recursion is illegal (it will cause stack overflow at
 	runtime as the empty condition before the recursion is always
 	met).
+
+    Right-context-sensitive grammar
+	libparser originally used context-free grammar, but with
+	introduction of the rejection rule, specifically the ability
+	to reject a rejection, it became a prase for
+	right-context-sensitive grammar which is a grammar that is
+	that can generate any context-sensitive language, it is however
+	weakly equivalent to context-sensitive grammar.
